@@ -83,5 +83,6 @@ if __name__ == "__main__":
         responses.append(text_grammer_check(text, client))
 
     for i in range(len(texts)):
+        print("\n" + "#" * os.get_terminal_size().columns + "\n")
         print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses[i]}{Fore.white}")
-        input("Press ENTER to continue...")
+    print("\n" + "#" * os.get_terminal_size().columns + "\n")
