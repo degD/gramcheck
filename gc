@@ -1,0 +1,90 @@
+#!/bin/python3
+
+from openai import OpenAI
+from dotenv import load_dotenv
+import sys
+import os
+
+help_msg = """
+Usage: dgc [FILE]
+\tRead lines from FILE and check them for grammatical errors using duck.ai Llama.
+\tWith no FILE, read from standard input. 
+"""
+
+file_read_error = "Unable to read from file. Please try again."
+
+def text_grammer_check(text: str, client: OpenAI):
+    prompt = "Check the given text sentence by sentence for syntatic errors:\n\n"
+    prompt += text 
+    completion = client.chat.completions.create(
+        model = "gpt-4o-mini",
+        messages = [
+            {
+                "role": "developer", 
+                "content": "You are a helpful assistant made for language teaching. Check the text given by the user sentence by sentence for syntatic errors."
+            },
+            {
+                "role": "user",
+                "content": text
+            }
+        ]
+    )
+    return completion.choices[0].message.content
+    
+def flatten_list(l: list):
+    l_flat = []
+    count = 0
+    for l_inner in l:
+        if isinstance(l_inner, list):
+            count += 1
+            l_flat.extend(l_inner)
+    if count == 0:
+        return l
+    else:
+        return flatten_list(l_flat)
+    
+def parse_long_text(text: str):
+    word_count = len(text.split())
+    if word_count < 1000:
+        return text
+    else:
+        text_first_half = " ".join(text.split()[:word_count//2])
+        text_second_half = " ".join(text.split()[word_count//2:])
+        return flatten_list([parse_long_text(text_first_half), parse_long_text(text_second_half)])
+
+def parse_file_text(file_text: str):
+    texts = []
+    for text in file_text.splitlines():
+        if text:
+            texts.append(parse_long_text(text))
+    return texts
+
+def read_from_stdin():
+    file_text = "".join(sys.stdin.readlines())
+    return file_text
+
+def read_from_file(path: str):
+    with open(path) as fp:
+        file_text = "".join(fp.readlines())
+        return file_text
+    
+
+if __name__ == "__main__":
+    # if len(sys.argv) == 1:
+    #     file_text = read_from_stdin()
+    # elif len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help"]:
+    #     try:
+    #         file_text = read_from_file()
+    #     except:
+    #         print(file_read_error)
+    #         exit(2)
+    # else:
+    #     print(help_msg)
+    #     exit(0)
+    # texts = parse_file_text(file_text)
+
+    load_dotenv()
+    texts = ["This is a test sentence."]
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    for text in texts:
+        print(text_grammer_check(text, client))
