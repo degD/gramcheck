@@ -2,13 +2,13 @@
 
 from openai import OpenAI
 from dotenv import load_dotenv
+from colored import Fore, Back, Style
 import sys
 import os
 
 help_msg = """
 Usage: dgc [FILE]
-\tRead lines from FILE and check them for grammatical errors using duck.ai Llama.
-\tWith no FILE, read from standard input. 
+\tRead lines from FILE and check them for grammatical errors using OpenAI API key in .env.
 """
 
 file_read_error = "Unable to read from file. Please try again."
@@ -45,7 +45,7 @@ def flatten_list(l: list):
     
 def parse_long_text(text: str):
     word_count = len(text.split())
-    if word_count < 1000:
+    if word_count < 40_000:
         return text
     else:
         text_first_half = " ".join(text.split()[:word_count//2])
@@ -59,32 +59,29 @@ def parse_file_text(file_text: str):
             texts.append(parse_long_text(text))
     return texts
 
-def read_from_stdin():
-    file_text = "".join(sys.stdin.readlines())
-    return file_text
-
 def read_from_file(path: str):
     with open(path) as fp:
         file_text = "".join(fp.readlines())
         return file_text
-    
 
 if __name__ == "__main__":
-    # if len(sys.argv) == 1:
-    #     file_text = read_from_stdin()
-    # elif len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help"]:
-    #     try:
-    #         file_text = read_from_file()
-    #     except:
-    #         print(file_read_error)
-    #         exit(2)
-    # else:
-    #     print(help_msg)
-    #     exit(0)
-    # texts = parse_file_text(file_text)
+    if len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help"]:
+        try:
+            file_text = read_from_file(sys.argv[1])
+        except:
+            print(file_read_error)
+            exit(2)
+    else:
+        print(help_msg)
+        exit(0)
 
     load_dotenv()
-    texts = ["This is a test sentence."]
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    texts = parse_file_text(file_text)
+    responses = []
     for text in texts:
-        print(text_grammer_check(text, client))
+        responses.append(text_grammer_check(text, client))
+
+    for i in range(len(texts)):
+        print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses[i]}{Fore.white}")
+        input("Press ENTER to continue...")
