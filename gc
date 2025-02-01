@@ -1,8 +1,9 @@
 #!/bin/python3
 
+import asyncio
 from openai import OpenAI
 from dotenv import load_dotenv
-from colored import Fore, Back, Style
+from colored import Fore
 import sys
 import os
 
@@ -13,9 +14,7 @@ Usage: dgc [FILE]
 
 file_read_error = "Unable to read from file. Please try again."
 
-def text_grammer_check(text: str, client: OpenAI):
-    prompt = "Check the given text sentence by sentence for syntatic errors:\n\n"
-    prompt += text 
+async def text_grammer_check(index: int, text: str, client: OpenAI):
     completion = client.chat.completions.create(
         model = "gpt-4o-mini",
         messages = [
@@ -29,7 +28,7 @@ def text_grammer_check(text: str, client: OpenAI):
             }
         ]
     )
-    return completion.choices[0].message.content
+    return index, completion.choices[0].message.content
     
 def flatten_list(l: list):
     l_flat = []
@@ -64,6 +63,15 @@ def read_from_file(path: str):
         file_text = "".join(fp.readlines())
         return file_text
 
+async def main(texts: list[str], client: OpenAI):
+    responses = await asyncio.gather(*[text_grammer_check(i, text, client) for i, text in enumerate(texts)])
+    responses_dict =  {i: res for i, res in responses}
+
+    for i in range(len(texts)):
+        print("\n" + "#" * os.get_terminal_size().columns + "\n")
+        print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses_dict[i]}{Fore.white}")
+    print("\n" + "#" * os.get_terminal_size().columns + "\n")
+
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help"]:
         try:
@@ -78,11 +86,5 @@ if __name__ == "__main__":
     load_dotenv()
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     texts = parse_file_text(file_text)
-    responses = []
-    for text in texts:
-        responses.append(text_grammer_check(text, client))
 
-    for i in range(len(texts)):
-        print("\n" + "#" * os.get_terminal_size().columns + "\n")
-        print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses[i]}{Fore.white}")
-    print("\n" + "#" * os.get_terminal_size().columns + "\n")
+    asyncio.run(main(texts, client))
