@@ -16,11 +16,13 @@ Usage: dgc [FILE]
 
 file_read_error = "Unable to read from file. Please try again."
 
-async def text_grammer_check(index: int, text: str, client: DuckChat):
-    prompt = "You are a helpful assistant made for language teaching. Check the text given by the user sentence by sentence for syntatic errors." + "\n\n"
-    answer = await client.ask_question(prompt + text)
-    return index, answer
-    
+async def text_grammer_check(index: int, text: str):
+    async with DuckChat(model=ModelType.Llama) as client:
+        # await asyncio.sleep(0.01)
+        prompt = "You are a helpful assistant made for language teaching. Check the text given by the user sentence by sentence for syntatic errors." + "\n\n"
+        answer = await client.ask_question(prompt + text)
+        return index, answer
+        
 def flatten_list(l: list):
     l_flat = []
     count = 0
@@ -55,14 +57,15 @@ def read_from_file(path: str):
         return file_text
 
 async def main(texts: list[str]):
-    async with DuckChat(model=ModelType.Llama) as client:
-        responses = await asyncio.gather(*[text_grammer_check(i, text, client) for i, text in enumerate(texts)])
-        responses_dict =  {i: res for i, res in responses}
+    responses = []
+    for i, text in enumerate(texts):
+        responses.append(await text_grammer_check(i, text))
+    responses_dict =  {i: res for i, res in responses}
 
-        for i in range(len(texts)):
-            print("\n" + "#" * os.get_terminal_size().columns + "\n")
-            print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses_dict[i]}{Fore.white}")
+    for i in range(len(texts)):
         print("\n" + "#" * os.get_terminal_size().columns + "\n")
+        print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses_dict[i]}{Fore.white}")
+    print("\n" + "#" * os.get_terminal_size().columns + "\n")
 
 if __name__ == "__main__":
     if len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help"]:
@@ -76,4 +79,5 @@ if __name__ == "__main__":
         exit(0)
 
     texts = parse_file_text(file_text)
+    texts = texts
     asyncio.run(main(texts))
