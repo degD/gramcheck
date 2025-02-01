@@ -1,27 +1,10 @@
-#!/bin/python3
-
-import aiohttp
 import asyncio
-from duck_chat import DuckChat, ModelType
-
-async def create_custom_session():
-    return aiohttp.ClientSession(
-        headers={"User-Agent": "DuckChat Client",
-                    "Connection": "keep-alive",
-                    "Cookie": "yourcookies",
-                    "x-vqd-4": "idk_what_this_is_for_its_probably_server_side_session_tracking"
-                    },
-        timeout=aiohttp.ClientTimeout(total=30)
-    )
+from duck_chat import DuckChat
 
 async def main():
-    custom_session = await create_custom_session()
-
-    try:
-        chat = DuckChat(session=custom_session, model=ModelType.Llama)
-        answer = await chat.ask_question("Hey! Are you Llama or Claude?")
-        print(answer)
-    finally:
-        await custom_session.close()
+    async with DuckChat() as chat:
+        print(await chat.ask_question("2+2?"))
+        await asyncio.sleep(1)
+        print(await chat.ask_question("6+6?"))
 
 asyncio.run(main())
