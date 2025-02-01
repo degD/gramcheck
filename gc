@@ -14,12 +14,11 @@ Usage: dgc [FILE] [-t TEXT]
 
 file_read_error = "Unable to read from file. Please try again."
 
-async def text_grammer_check(index: int, text: str):
+async def text_grammer_check(text: str):
     async with DuckChat(model=ModelType.Llama) as client:
-        # await asyncio.sleep(0.01)
         prompt = "You are a helpful assistant made for language teaching. Check the text given by the user sentence by sentence for syntatic errors." + "\n\n"
         answer = await client.ask_question(prompt + text)
-        return index, answer
+        return answer
         
 def flatten_list(l: list):
     l_flat = []
@@ -56,13 +55,12 @@ def read_from_file(path: str):
 
 async def main(texts: list[str]):
     responses = []
-    for i, text in enumerate(texts):
-        responses.append(await text_grammer_check(i, text))
-    responses_dict =  {i: res for i, res in responses}
+    for text in texts:
+        responses.append(await text_grammer_check(text))
 
     for i in range(len(texts)):
         print("\n" + "#" * os.get_terminal_size().columns + "\n")
-        print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses_dict[i]}{Fore.white}")
+        print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses[i]}{Fore.white}")
     print("\n" + "#" * os.get_terminal_size().columns + "\n")
 
 if __name__ == "__main__":
