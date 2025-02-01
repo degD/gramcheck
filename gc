@@ -1,17 +1,15 @@
 #!/bin/python3
 
-import aiohttp
 import asyncio
 from duck_chat import DuckChat, ModelType
-from openai import OpenAI
-from dotenv import load_dotenv
 from colored import Fore
 import sys
 import os
 
 help_msg = """
-Usage: dgc [FILE]
-\tRead lines from FILE and check them for grammatical errors using OpenAI API key in .env.
+Usage: dgc [FILE] [-t TEXT]
+\tRead lines from FILE and check them for grammatical errors using "duck.ai".
+\tOr grammer check TEXT with "-t" option.
 """
 
 file_read_error = "Unable to read from file. Please try again."
@@ -68,12 +66,14 @@ async def main(texts: list[str]):
     print("\n" + "#" * os.get_terminal_size().columns + "\n")
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help"]:
+    if len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help", "-t"]:
         try:
             file_text = read_from_file(sys.argv[1])
         except:
             print(file_read_error)
             exit(2)
+    elif len(sys.argv) == 3 and sys.argv[1] == "-t":
+        file_text = sys.argv[2]
     else:
         print(help_msg)
         exit(0)
