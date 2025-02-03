@@ -14,7 +14,7 @@ Still, this might change in the future. Use at your own risk.
 ## How to use?
 1. Activate venv: `source .venv/bin/activate`
 2. Run: `chmod +x gc`
-3. Run: `./gc [FILE]` to grammer check a file, or `./gc -t [TEXT]` to grammer check text.
+3. Run: `./gc [FILE]` to grammer check a file where each line corresponds to a text, or `./gc -t [TEXT]` to grammer check a given text.
 4. For more information, run: `./gc --help`
 
 ## Troubleshooting
