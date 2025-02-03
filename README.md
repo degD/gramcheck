@@ -12,10 +12,9 @@ Still, this might change in the future. Use at your own risk.
 3. Install [duck_chat](https://github.com/mrgick/duck_chat)
 
 ## How to use?
-1. Activate venv: `source .venv/bin/activate`
-2. Run: `chmod +x gc`
-3. Run: `./gc [FILE]` to grammer check a file where each line corresponds to a text, or `./gc -t [TEXT]` to grammer check a given text.
-4. For more information, run: `./gc --help`
+1. Run: `chmod +x gc`
+2. Run: `./gc [FILE]` to grammer check a file where each line corresponds to a text, or `./gc -t [TEXT]` to grammer check a given text.
+3. For more information, run: `./gc --help`
 
 ## Troubleshooting
 If running `gc` crashes with the error `ERR_CHALLENGE`, you may need to do a small modification to 
