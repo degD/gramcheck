@@ -8,13 +8,15 @@ Still, this might change in the future. Use at your own risk.
 
 ## How to Install?
 1. You need to install Python3.12
-2. Create a Python venv: `python -m venv .venv && source .venv/bin/activate`
-3. Install [duck_chat](https://github.com/mrgick/duck_chat)
+2. Create a directory: `mkdir gramcheck`
+3. Create a Python venv inside: `cd gramcheck && python -m venv .venv && source .venv/bin/activate`
+4. Install [duck_chat](https://github.com/mrgick/duck_chat)
 
 ## How to use?
 1. Run: `chmod +x gc`
-2. Run: `./gc [FILE]` to grammer check a file where each line corresponds to a text, or `./gc -t [TEXT]` to grammer check a given text.
-3. For more information, run: `./gc --help`
+2. Create a symbolic link: `ln -s -T /path/to/gramcheck/gc /path/to/link/gc`
+3. Run: `./gc [FILE]` to grammer check a file where each line corresponds to a text, or `./gc -t [TEXT]` to grammer check a text.
+4. For more information, run: `./gc --help`
 
 ## Troubleshooting
 If running `gc` crashes with the error `ERR_CHALLENGE`, you may need to do a small modification to 
