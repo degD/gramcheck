@@ -1,5 +1,5 @@
-import asyncio
 from colored import Fore
+import argparse
 import sys
 import os
 import dotenv
@@ -8,18 +8,29 @@ from google import genai
 dotenv.load_dotenv()
 client = genai.Client()
 
-help_msg = """
-Usage: dgc [FILE] [-t TEXT] [FILE -n NUMBER]
-\tRead lines from FILE and check them for grammatical errors using LLMs.
-\tOr grammer check TEXT with "-t" option.
-\tTo check NUMBERth text in FILE, use the "-n" option.  
-"""
-
 file_read_error = "Unable to read from file. Please try again."
 
 number_error = "Text number \"-n\" is not an integer."
 
 number_range_error = "The number specified is not in the range of number of texts in file (counting starts from 0)."
+
+def build_arg_parser() -> argparse.ArgumentParser:
+    return argparse.ArgumentParser(
+        prog="grc",
+        description=(
+            "Read lines from FILE and check them for grammatical errors using LLMs.\n"
+            "Or grammar check TEXT with \"-t\" option.\n"
+            "To check NUMBERth text in FILE, use the \"-n\" option.\n"
+            "To check FILE as a whole, use option \"-a\"."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+def parse_text_number(value: str) -> int:
+    try:
+        return int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(number_error) from exc
 
 def text_grammer_check(text: str):
     prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntatic and semantic errors. Avoid any greetings or fillings." + "\n\n"
@@ -80,36 +91,58 @@ def main(texts: list[str]):
     print("\n" + "#" * os.get_terminal_size().columns + "\n")
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2 and sys.argv[1] not in ["-h", "--help", "-t"]:
-        try:
-            file_text = read_from_file(sys.argv[1])
-        except:
-            sys.stderr.write(file_read_error + "\n")
-            exit(1)
-    elif len(sys.argv) == 3 and sys.argv[1] == "-t":
-        file_text = sys.argv[2]
-    elif len(sys.argv) == 4 and sys.argv[2] == "-n":
-        try:
-            number_of_text = int(sys.argv[3])
-        except:
-            sys.stderr.write(number_error + "\n")
-            print("b")
-            exit(2)
-        try:
-            file_text = read_from_file(sys.argv[1])
-            file_texts = parse_only_file_text(file_text)
-        except:
-            sys.stderr.write(file_read_error + "\n")
-            exit(1)
-        if number_of_text < 0 or number_of_text >= len(file_texts):
-            sys.stderr.write(number_range_error + "\n")
-            exit(3)
-        else:
-            file_text = file_texts[number_of_text]
-    else:
-        print(help_msg)
-        exit(0)
+    parser = build_arg_parser()
+    parser.add_argument("file", nargs="?", help="File to read")
+    parser.add_argument("-t", "--text", help="Text to check")
+    parser.add_argument(
+        "-n",
+        "--number",
+        type=parse_text_number,
+        help="Check NUMBERth text in FILE (0-based)",
+    )
+    parser.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        help="Check FILE as a whole",
+    )
 
-    texts = parse_file_text(file_text)
-    texts = texts
+    args = parser.parse_args()
+
+    if not args.text and not args.file:
+        parser.print_help()
+        sys.exit(0)
+    if args.text and args.file:
+        parser.error("FILE and -t/--text cannot be used together")
+    if args.text and args.number is not None:
+        parser.error("-n/--number cannot be used with -t/--text")
+    if args.number is not None and not args.file:
+        parser.error("-n/--number requires FILE")
+    if args.all and not args.file:
+        parser.error("-a/--all requires FILE")
+    if args.all and args.text:
+        parser.error("-a/--all cannot be used with -t/--text")
+
+    if args.text:
+        texts = parse_file_text(args.text)
+    else:
+        try:
+            file_text = read_from_file(args.file)
+        except:
+            sys.stderr.write(file_read_error + "\n")
+            sys.exit(1)
+
+        if args.number is not None:
+            file_texts = parse_only_file_text(file_text)
+            if args.number < 0 or args.number >= len(file_texts):
+                sys.stderr.write(number_range_error + "\n")
+                sys.exit(3)
+            file_text = file_texts[args.number]
+            texts = parse_file_text(file_text)
+        elif args.all:
+            text_or_texts = parse_long_text(file_text)
+            texts = text_or_texts if isinstance(text_or_texts, list) else [text_or_texts]
+        else:
+            texts = parse_file_text(file_text)
+
     main(texts)
