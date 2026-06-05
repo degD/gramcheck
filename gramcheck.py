@@ -10,7 +10,7 @@ client = genai.Client()
 
 help_msg = """
 Usage: dgc [FILE] [-t TEXT] [FILE -n NUMBER]
-\tRead lines from FILE and check them for grammatical errors using "duck.ai".
+\tRead lines from FILE and check them for grammatical errors using LLMs.
 \tOr grammer check TEXT with "-t" option.
 \tTo check NUMBERth text in FILE, use the "-n" option.  
 """
@@ -22,7 +22,7 @@ number_error = "Text number \"-n\" is not an integer."
 number_range_error = "The number specified is not in the range of number of texts in file (counting starts from 0)."
 
 def text_grammer_check(text: str):
-    prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntatic errors. Do not write any greetings or fillings." + "\n\n"
+    prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntatic and semantic errors. Avoid any greetings or fillings." + "\n\n"
     response = client.models.generate_content(
         model="gemini-3.1-flash-lite",
         contents=prompt + text
