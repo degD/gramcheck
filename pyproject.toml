@@ -1,11 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "gramcheck"
 version = "0.1.0"
-description = "Add your description here"
+description = "Use LLMs to check grammar."
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.12"
 dependencies = [
     "colored>=2.3.2",
-    "dotenv>=0.9.9",
+    "python-dotenv>=1.0.1",
     "google-genai>=2.8.0",
 ]
+
+[project.scripts]
+gramcheck = "gramcheck:cli"
+
+[tool.setuptools]
+py-modules = ["gramcheck"]

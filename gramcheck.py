@@ -5,6 +5,12 @@ import os
 import dotenv
 from google import genai
 
+def get_config_env_path() -> str:
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(project_root, ".env")
+
+CONFIG_ENV_PATH = get_config_env_path()
+dotenv.load_dotenv(CONFIG_ENV_PATH)
 dotenv.load_dotenv()
 client = genai.Client()
 
@@ -14,9 +20,32 @@ number_error = "Text number \"-n\" is not an integer."
 
 number_range_error = "The number specified is not in the range of number of texts in file (counting starts from 0)."
 
+def set_api_key(api_key: str) -> str:
+    env_path = CONFIG_ENV_PATH
+    os.makedirs(os.path.dirname(env_path), exist_ok=True)
+
+    lines = []
+    if os.path.exists(env_path):
+        with open(env_path) as fp:
+            lines = fp.read().splitlines()
+
+    updated = False
+    for index, line in enumerate(lines):
+        if line.startswith("GEMINI_API_KEY="):
+            lines[index] = f"GEMINI_API_KEY={api_key}"
+            updated = True
+            break
+    if not updated:
+        lines.append(f"GEMINI_API_KEY={api_key}")
+
+    with open(env_path, "w") as fp:
+        fp.write("\n".join(lines).rstrip("\n") + "\n")
+
+    return env_path
+
 def build_arg_parser() -> argparse.ArgumentParser:
     return argparse.ArgumentParser(
-        prog="grc",
+        prog="gramcheck",
         description=(
             "Read lines from FILE and check them for grammatical errors using LLMs.\n"
             "Or grammar check TEXT with \"-t\" option.\n"
@@ -90,7 +119,7 @@ def main(texts: list[str]):
         print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses[i]}{Fore.white}")
     print("\n" + "#" * os.get_terminal_size().columns + "\n")
 
-if __name__ == "__main__":
+def cli():
     parser = build_arg_parser()
     parser.add_argument("file", nargs="?", help="File to read")
     parser.add_argument("-t", "--text", help="Text to check")
@@ -106,9 +135,20 @@ if __name__ == "__main__":
         action="store_true",
         help="Check FILE as a whole",
     )
+    parser.add_argument(
+        "--set-api-key",
+        metavar="KEY",
+        help="Store GEMINI_API_KEY in the user config",
+    )
 
     args = parser.parse_args()
 
+    if args.set_api_key:
+        if args.text or args.file or args.number is not None or args.all:
+            parser.error("--set-api-key cannot be combined with other options")
+        env_path = set_api_key(args.set_api_key)
+        print(f"Saved GEMINI_API_KEY to {env_path}")
+        sys.exit(0)
     if not args.text and not args.file:
         parser.print_help()
         sys.exit(0)
@@ -144,5 +184,7 @@ if __name__ == "__main__":
             texts = text_or_texts if isinstance(text_or_texts, list) else [text_or_texts]
         else:
             texts = parse_file_text(file_text)
-
     main(texts)
+
+if __name__ == "__main__":
+    cli()

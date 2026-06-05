@@ -1,2 +1,4 @@
 .dgc-env
 .env
+build/*
+gramcheck.egg-info/*
