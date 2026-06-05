@@ -1,8 +1,12 @@
 import asyncio
-from duck_chat import DuckChat, ModelType
 from colored import Fore
 import sys
 import os
+import dotenv
+from google import genai
+
+dotenv.load_dotenv()
+client = genai.Client()
 
 help_msg = """
 Usage: dgc [FILE] [-t TEXT] [FILE -n NUMBER]
@@ -17,11 +21,13 @@ number_error = "Text number \"-n\" is not an integer."
 
 number_range_error = "The number specified is not in the range of number of texts in file (counting starts from 0)."
 
-async def text_grammer_check(text: str):
-    async with DuckChat(model=ModelType.Llama) as client:
-        prompt = "You are a helpful assistant made for language teaching. Check the text given by the user sentence by sentence for syntatic errors." + "\n\n"
-        answer = await client.ask_question(prompt + text)
-        return answer
+def text_grammer_check(text: str):
+    prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntatic errors. Do not write any greetings or fillings." + "\n\n"
+    response = client.models.generate_content(
+        model="gemini-3.1-flash-lite",
+        contents=prompt + text
+    )
+    return response.text
         
 def flatten_list(l: list):
     l_flat = []
@@ -63,10 +69,10 @@ def read_from_file(path: str):
         file_text = "".join(fp.readlines())
         return file_text
 
-async def main(texts: list[str]):
+def main(texts: list[str]):
     responses = []
     for text in texts:
-        responses.append(await text_grammer_check(text))
+        responses.append(text_grammer_check(text))
 
     for i in range(len(texts)):
         print("\n" + "#" * os.get_terminal_size().columns + "\n")
@@ -106,4 +112,4 @@ if __name__ == "__main__":
 
     texts = parse_file_text(file_text)
     texts = texts
-    asyncio.run(main(texts))
+    main(texts)

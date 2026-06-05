@@ -2,26 +2,15 @@
 A Python script to check a given text for grammer mistakes by using online AI tools. 
 
 ## Disclaimer
-This script has written for educational purpuoses only. It utilizes [duck.ai](duck.ai)
-under the hood, which doesn't violate the [ToS](https://duckduckgo.com/duckai/privacy-terms).
-Still, this might change in the future. Use at your own risk.
+This script has written for educational purpuoses only. It utilizes [Google AI Studio](https://aistudio.google.com/) under the hood. To use this tool, you have to bring your own API key. You can create an API key for free, without even adding a billing address.
 
 ## How to Install?
-1. You need to install Python3.12
-2. Create a directory: `mkdir gramcheck`
-3. Create a Python venv inside: `cd gramcheck && python -m venv .venv && source .venv/bin/activate`
-4. Install [duck_chat](https://github.com/mrgick/duck_chat)
+1. Install [`uv`](https://docs.astral.sh/uv/) project manager.
+2. Clone project and run `uv sync` to install packages.
+3. Run `echo GEMINI_API_KEY=<YOUR_API_KEY_HERE> > .env`. 
 
 ## How to use?
-1. Run: `chmod +x gc`
-2. Create a symbolic link: `ln -s -T /path/to/gramcheck/gc /path/to/link/gc`
-3. Run: `./gc [FILE]` to grammer check a file where each line corresponds to a text, or `./gc -t [TEXT]` to grammer check a text.
-4. For more information, run: `./gc --help`
-
-## Troubleshooting
-If running `gc` crashes with the error `ERR_CHALLENGE`, you may need to do a small modification to 
-[duck_chat](https://github.com/mrgick/duck_chat) source code, as this modification hasn't merged yet.
-1. Navigate to the duck_chat source code with `cd .venv/lib/python3.12/site-packages/duck_chat`
-2. Open `api.py` with your favourite editor, like `vim api.py`
-3. At the line `29`, there is a `headers` dictionary. Insert `"x-vqd-4": ""` inside it.
-4. Save the file. Now the script should work.
+1. Run: `chmod +x grc`
+2. Create a symbolic link: `ln -s -T /path/to/gramcheck/grc /path/to/link/grc`
+3. Run: `./grc [FILE]` to grammer check a file where each line corresponds to a text, or `./gc -t [TEXT]` to grammer check a single text.
+4. For more information, run: `./grc --help`
