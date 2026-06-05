@@ -2,7 +2,7 @@
 This is a Python tool to check text for grammar mistakes using online LLMs. It uses [Google AI Studio](https://aistudio.google.com/) under the hood. You must provide your own API key.
 
 ## Install
-1. Install from PyPI: `pip install gramcheck`.
+1. Install from PyPI: `pipx install gramcheck`.
 2. Set your API key: `gramcheck --set-api-key <YOUR_API_KEY_HERE>` (writes to `.env` in the project directory).
 
 ## Usage
