@@ -1,5 +1,5 @@
 # GRAMCHECK
-This is a Python tool to check text for grammar mistakes using online LLMs. It uses [Google AI Studio](https://aistudio.google.com/) under the hood. You must provide your own API key.
+This is a Python tool to check text for grammar mistakes using online LLMs. It uses [Google AI Studio](https://aistudio.google.com/) under the hood. You must provide your own API key. Because of the probabilistic nature of LLMs, the results may or may not be correct. Take them with a grain of salt. However, results are generated using a predefined seed to keep them consistent.
 
 ## Install
 1. Install from PyPI: `pipx install gramcheck`.

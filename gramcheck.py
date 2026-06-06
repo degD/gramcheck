@@ -1,24 +1,35 @@
-from colored import Fore
 import argparse
-import sys
 import os
+import sys
+
 import dotenv
+from colored import Fore
 from google import genai
+from google.genai import types
+
 
 def get_config_env_path() -> str:
     project_root = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(project_root, ".env")
 
+
+SEED = 4224442
+API_KEY_PROVIDED = True
 CONFIG_ENV_PATH = get_config_env_path()
 dotenv.load_dotenv(CONFIG_ENV_PATH)
 dotenv.load_dotenv()
-client = genai.Client()
+
+try:
+    client = genai.Client()
+except ValueError:
+    API_KEY_PROVIDED = False
 
 file_read_error = "Unable to read from file. Please try again."
 
-number_error = "Text number \"-n\" is not an integer."
+number_error = 'Text number "-n" is not an integer.'
 
 number_range_error = "The number specified is not in the range of number of texts in file (counting starts from 0)."
+
 
 def set_api_key(api_key: str) -> str:
     env_path = CONFIG_ENV_PATH
@@ -43,17 +54,19 @@ def set_api_key(api_key: str) -> str:
 
     return env_path
 
+
 def build_arg_parser() -> argparse.ArgumentParser:
     return argparse.ArgumentParser(
         prog="gramcheck",
         description=(
             "Read lines from FILE and check them for grammatical errors using LLMs.\n"
-            "Or grammar check TEXT with \"-t\" option.\n"
-            "To check NUMBERth text in FILE, use the \"-n\" option.\n"
-            "To check FILE as a whole, use option \"-a\"."
+            'Or grammar check TEXT with "-t" option.\n'
+            'To check Nth text in FILE, use the "-n" option.\n'
+            'To check FILE as a whole, use option "-a".'
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+
 
 def parse_text_number(value: str) -> int:
     try:
@@ -61,14 +74,19 @@ def parse_text_number(value: str) -> int:
     except ValueError as exc:
         raise argparse.ArgumentTypeError(number_error) from exc
 
-def text_grammer_check(text: str):
-    prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntatic and semantic errors. Avoid any greetings or fillings." + "\n\n"
+
+def text_grammar_check(text: str):
     response = client.models.generate_content(
         model="gemini-3.1-flash-lite",
-        contents=prompt + text
+        contents=text,
+        config=types.GenerateContentConfig(
+            system_instruction="You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntactic and semantic errors. Strictly avoid any greetings or filler.",
+            seed=SEED,
+        ),
     )
     return response.text
-        
+
+
 def flatten_list(l: list):
     l_flat = []
     count = 0
@@ -80,15 +98,19 @@ def flatten_list(l: list):
         return l
     else:
         return flatten_list(l_flat)
-    
+
+
 def parse_long_text(text: str):
     word_count = len(text.split())
     if word_count < 40_000:
         return text
     else:
-        text_first_half = " ".join(text.split()[:word_count//2])
-        text_second_half = " ".join(text.split()[word_count//2:])
-        return flatten_list([parse_long_text(text_first_half), parse_long_text(text_second_half)])
+        text_first_half = " ".join(text.split()[: word_count // 2])
+        text_second_half = " ".join(text.split()[word_count // 2 :])
+        return flatten_list(
+            [parse_long_text(text_first_half), parse_long_text(text_second_half)]
+        )
+
 
 def parse_file_text(file_text: str):
     texts = []
@@ -97,6 +119,7 @@ def parse_file_text(file_text: str):
             texts.append(parse_long_text(text))
     return texts
 
+
 def parse_only_file_text(file_text: str):
     texts = []
     for text in file_text.splitlines():
@@ -104,20 +127,23 @@ def parse_only_file_text(file_text: str):
             texts.append(text)
     return texts
 
+
 def read_from_file(path: str):
     with open(path) as fp:
         file_text = "".join(fp.readlines())
         return file_text
 
+
 def main(texts: list[str]):
     responses = []
     for text in texts:
-        responses.append(text_grammer_check(text))
+        responses.append(text_grammar_check(text))
 
     for i in range(len(texts)):
         print("\n" + "#" * os.get_terminal_size().columns + "\n")
         print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses[i]}{Fore.white}")
     print("\n" + "#" * os.get_terminal_size().columns + "\n")
+
 
 def cli():
     parser = build_arg_parser()
@@ -127,7 +153,7 @@ def cli():
         "-n",
         "--number",
         type=parse_text_number,
-        help="Check NUMBERth text in FILE (0-based)",
+        help="Check Nth text in FILE (0-based)",
     )
     parser.add_argument(
         "-a",
@@ -149,19 +175,25 @@ def cli():
         env_path = set_api_key(args.set_api_key)
         print(f"Saved GEMINI_API_KEY to {env_path}")
         sys.exit(0)
-    if not args.text and not args.file:
-        parser.print_help()
-        sys.exit(0)
-    if args.text and args.file:
-        parser.error("FILE and -t/--text cannot be used together")
-    if args.text and args.number is not None:
-        parser.error("-n/--number cannot be used with -t/--text")
-    if args.number is not None and not args.file:
-        parser.error("-n/--number requires FILE")
-    if args.all and not args.file:
-        parser.error("-a/--all requires FILE")
-    if args.all and args.text:
-        parser.error("-a/--all cannot be used with -t/--text")
+
+    if API_KEY_PROVIDED:
+        if not args.text and not args.file:
+            parser.print_help()
+            sys.exit(0)
+        if args.text and args.file:
+            parser.error("FILE and -t/--text cannot be used together")
+        if args.text and args.number is not None:
+            parser.error("-n/--number cannot be used with -t/--text")
+        if args.number is not None and not args.file:
+            parser.error("-n/--number requires FILE")
+        if args.all and not args.file:
+            parser.error("-a/--all requires FILE")
+        if args.all and args.text:
+            parser.error("-a/--all cannot be used with -t/--text")
+    else:
+        parser.error(
+            "No API key was provided. Please pass a valid API key using --set-api-key"
+        )
 
     if args.text:
         texts = parse_file_text(args.text)
@@ -181,10 +213,13 @@ def cli():
             texts = parse_file_text(file_text)
         elif args.all:
             text_or_texts = parse_long_text(file_text)
-            texts = text_or_texts if isinstance(text_or_texts, list) else [text_or_texts]
+            texts = (
+                text_or_texts if isinstance(text_or_texts, list) else [text_or_texts]
+            )
         else:
             texts = parse_file_text(file_text)
     main(texts)
+
 
 if __name__ == "__main__":
     cli()
