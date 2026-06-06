@@ -3,12 +3,17 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gramcheck"
+name = "gramcheck_degeder"
 version = "0.1.0"
 description = "Use LLMs to check grammar."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "colored>=2.3.2",
     "python-dotenv>=1.0.1",
@@ -20,3 +25,7 @@ gramcheck = "gramcheck:cli"
 
 [tool.setuptools]
 py-modules = ["gramcheck"]
+
+[project.urls]
+Homepage = "https://github.com/degD/gramcheck"
+Issues = "https://github.com/degD/gramcheck/issues"
