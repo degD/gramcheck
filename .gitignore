@@ -1,5 +1,5 @@
 .dgc-env
 .env
 build/*
-gramcheck_degeder.egg-info/*
+gramcheck.egg-info/*
 dist/*
