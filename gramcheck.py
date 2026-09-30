@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import shutil
 import sys
@@ -9,7 +10,6 @@ import requests
 from colorama import Fore, Style, just_fix_windows_console
 
 just_fix_windows_console()
-
 
 
 def get_config_env_path() -> str:
@@ -48,7 +48,7 @@ number_range_error = "The number specified is not in the range of number of text
 post_req = {
     'prompt': system_prompt,
     'seed': SEED,
-    'stream': False,
+    'stream': True,
 }
 
 
@@ -96,12 +96,31 @@ def parse_text_number(value: str) -> int:
         raise argparse.ArgumentTypeError(number_error) from exc
 
 
-def text_grammar_check(text: str):
+def stream_grammar_check(text: str):
     data = post_req.copy()
     data['prompt'] += '\n\n' + text  # ty: ignore[unsupported-operator]
-    r = requests.post(COMPLETION_URL, json=data)
+    r = requests.post(COMPLETION_URL, json=data, stream=True)
     r.raise_for_status()
-    return r.json()['content']
+    buffer = ''
+    for chunk in r.iter_content(chunk_size=None, decode_unicode=True):
+        if not chunk:
+            continue
+        buffer += chunk  # ty: ignore[unsupported-operator]
+        while '\n' in buffer:
+            line, buffer = buffer.split('\n', 1)
+            line = line.strip()
+            if not line or not line.startswith('data:'):
+                continue
+            payload = line[len('data:'):].strip()
+            if payload == '[DONE]':
+                return
+            try:
+                obj = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            content = obj.get('content', '')
+            if content:
+                yield content
 
 
 def parse_long_text(text: str) -> list[str]:
@@ -137,14 +156,17 @@ def read_from_file(path: str) -> str:
 
 
 def main(texts: list[str]):
-    responses = []
+    separator = "\n" + "#" * shutil.get_terminal_size().columns + "\n"
     for text in texts:
-        responses.append(text_grammar_check(text))
-
-    for i in range(len(texts)):
-        print("\n" + "#" * shutil.get_terminal_size().columns + "\n")
-        print(f"{Fore.RED}{texts[i]}\n\n{Fore.GREEN}{responses[i]}{Style.RESET_ALL}")
-    print("\n" + "#" * shutil.get_terminal_size().columns + "\n")
+        print(separator)
+        print(f"{Fore.RED}{text}{Style.RESET_ALL}\n")
+        print(Fore.GREEN, end="", flush=True)
+        try:
+            for chunk in stream_grammar_check(text):
+                print(chunk, end="", flush=True)
+        finally:
+            print(Style.RESET_ALL, flush=True)
+    print(separator)
 
 
 def cli():
