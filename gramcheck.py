@@ -156,8 +156,8 @@ def read_from_file(path: str) -> str:
 
 
 def main(texts: list[str]):
-    separator = "\n" + "#" * shutil.get_terminal_size().columns + "\n"
     for text in texts:
+        separator = "\n" + "#" * shutil.get_terminal_size().columns + "\n"
         print(separator)
         print(f"{Fore.RED}{text}{Style.RESET_ALL}\n")
         print(Fore.GREEN, end="", flush=True)
