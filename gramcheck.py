@@ -4,10 +4,12 @@ import os
 import shutil
 import sys
 import urllib.parse as urlparse
+from io import StringIO
 
 import dotenv
 import requests
 from colorama import Fore, Style, just_fix_windows_console
+from markdown import Markdown
 
 just_fix_windows_console()
 
@@ -38,7 +40,49 @@ try:
 except Exception:
     _GC_SERVER_URL_PROVIDED = False
 
-system_prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntactic and semantic errors. Strictly avoid any greetings or filler."
+
+system_prompt = (
+    "You are a proofreading tool. The user sends text; you report errors.\n"
+    "\n"
+    "Output format: one line per error, in the form\n"
+    " original fragment -> corrected fragment\n"
+    "\n"
+    "Rules:\n"
+    "- Report only syntactic and semantic errors. Do not comment on style, tone, "
+    "or word choice unless the word choice itself is wrong.\n"
+    "- Use the exact original wording on the left. Change only what is needed to "
+    "fix the error on the right. Do not rephrase.\n"
+    "- Omit fragments that are correct.\n"
+    "- Skip anything that is not a sentence or is not legible prose: headings, "
+    "code fences, inline code, URLs, paths, command examples, bullet markers, "
+    "file names, and similar non-prose. Do not report anything about them.\n"
+    "- If the input contains no checkable prose, or all prose is correct, "
+    "output exactly: OK\n"
+    "- No headings, no bullets, no explanations, no summary, no markdown.\n"
+    "\n"
+    "Examples:\n"
+    "Input:  She go to the store yesterday.\n"
+    "Output: She go -> She went\n"
+    "\n"
+    "Input:  Her advice had a big affect on my decision.\n"
+    "Output: affect -> effect\n"
+    "\n"
+    "Input:  The instrections was unclear, so I didn't understood them.\n"
+    "Output: The instructions was -> The instructions were\n"
+    "I didn't understood -> I didn't understand\n"
+    "\n"
+    "Input:  ## Requirements\n"
+    "- Python 3.8+\n"
+    "Run `gramcheck --help` for usage.\n"
+    "Output: OK\n"
+    "\n"
+    "Input:  The quick brown fox jumps over the lazy dog.\n"
+    "Output: OK"
+    "\n"
+    "Input:  For more details for the API specific options.\n"
+    "Output: For more details for the API specific options. "
+    "-> See the documentation for the API-specific options.\n"
+)
 file_read_error = "Unable to read from file. Please try again."
 number_error = 'Text number "-n" is not an integer.'
 number_range_error = "The number specified is not in the range of number of texts in file (counting starts from 0)."
@@ -50,7 +94,30 @@ post_req = {
     ],
     'seed': SEED,
     'stream': True,
+    'temperature': 0.2,
+    'top_p': 0.9,
 }
+
+
+def unmark_element(element, stream=None):
+    if stream is None:
+        stream = StringIO()
+    if element.text:
+        stream.write(element.text)
+    for sub in element:
+        unmark_element(sub, stream)
+    if element.tail:
+        stream.write(element.tail)
+    return stream.getvalue()
+
+
+Markdown.output_formats["plain"] = unmark_element
+__md = Markdown(output_format="plain")
+__md.stripTopLevelTags = False
+
+
+def unmark(text: str) -> str:
+    return __md.convert(text)
 
 
 def set__GC_SERVER_URL(_GC_SERVER_URL: str) -> str:
@@ -99,7 +166,9 @@ def parse_text_number(value: str) -> int:
 
 def stream_grammar_check(text: str):
     data = post_req.copy()
-    data['messages'] = post_req['messages'] + [{'role': 'user', 'content': text}]  # ty: ignore[unsupported-operator]
+    data['messages'] = post_req['messages'] + [
+        {'role': 'user', 'content': 'Input: ' + unmark(text)}
+    ]  # ty: ignore[unsupported-operator]
     r = requests.post(COMPLETION_URL, json=data, stream=True)
     r.raise_for_status()
     buffer = ''
