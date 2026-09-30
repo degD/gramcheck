@@ -8,6 +8,10 @@ Because of the probabilistic nature of LLMs, results may or may not be
 correct. Take them with a grain of salt. Results are generated using a
 predefined seed to keep them consistent.
 
+Currently does not support API keys. Future versions will plan API keys
+to enable support for online providers. Example tests are also planned
+for future versions.
+
 ## Requirements
 
 - Python 3.8+
