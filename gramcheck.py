@@ -29,8 +29,7 @@ if _GC_SERVER_URL and not _GC_SERVER_URL.endswith('/'):
     _GC_SERVER_URL += '/'
 
 HEALTH_URL = urlparse.urljoin(_GC_SERVER_URL, 'health')
-COMPLETION_URL = urlparse.urljoin(_GC_SERVER_URL, 'completion')
-
+COMPLETION_URL = urlparse.urljoin(_GC_SERVER_URL, 'v1/chat/completions')
 try:
     if requests.head(str(HEALTH_URL), timeout=3).status_code == 200:
         _GC_SERVER_URL_PROVIDED = True
@@ -46,7 +45,9 @@ number_range_error = "The number specified is not in the range of number of text
 
 
 post_req = {
-    'prompt': system_prompt,
+    'messages': [
+        {'role': 'system', 'content': system_prompt},
+    ],
     'seed': SEED,
     'stream': True,
 }
@@ -98,7 +99,7 @@ def parse_text_number(value: str) -> int:
 
 def stream_grammar_check(text: str):
     data = post_req.copy()
-    data['prompt'] += '\n\n' + text  # ty: ignore[unsupported-operator]
+    data['messages'] = post_req['messages'] + [{'role': 'user', 'content': text}]  # ty: ignore[unsupported-operator]
     r = requests.post(COMPLETION_URL, json=data, stream=True)
     r.raise_for_status()
     buffer = ''
@@ -118,7 +119,10 @@ def stream_grammar_check(text: str):
                 obj = json.loads(payload)
             except json.JSONDecodeError:
                 continue
-            content = obj.get('content', '')
+            choices = obj.get('choices') or []
+            if not choices:
+                continue
+            content = choices[0].get('delta', {}).get('content') or ''
             if content:
                 yield content
 
