@@ -286,6 +286,7 @@ dependencies = [
     { name = "colored" },
     { name = "google-genai" },
     { name = "python-dotenv" },
+    { name = "requests" },
 ]
 
 [package.metadata]
@@ -293,6 +294,7 @@ requires-dist = [
     { name = "colored", specifier = ">=2.3.2" },
     { name = "google-genai", specifier = ">=2.8.0" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "requests", specifier = ">=2.34.2" },
 ]
 
 [[package]]

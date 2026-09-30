@@ -1,11 +1,12 @@
 import argparse
+import json
 import os
 import sys
+import urllib.parse as urlparse
 
 import dotenv
+import requests
 from colored import Fore
-from google import genai
-from google.genai import types
 
 
 def get_config_env_path() -> str:
@@ -14,24 +15,37 @@ def get_config_env_path() -> str:
 
 
 SEED = 4224442
-API_KEY_PROVIDED = True
+_GC_SERVER_URL_PROVIDED = True
 CONFIG_ENV_PATH = get_config_env_path()
 dotenv.load_dotenv(CONFIG_ENV_PATH)
-dotenv.load_dotenv()
+_GC_SERVER_URL = os.getenv('_GC_SERVER_URL')
+if _GC_SERVER_URL is None: _GC_SERVER_URL = ''
+HEALTH_URL = urlparse.urljoin(_GC_SERVER_URL, 'health')
+COMPLETION_URL = urlparse.urljoin(_GC_SERVER_URL, 'completion')
 
 try:
-    client = genai.Client()
-except ValueError:
-    API_KEY_PROVIDED = False
+    if requests.head(str(HEALTH_URL)).status_code == 200:
+        _GC_SERVER_URL_PROVIDED = True
+    else: 
+        _GC_SERVER_URL_PROVIDED = False
+except:
+    _GC_SERVER_URL_PROVIDED = False
 
+system_prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntactic and semantic errors. Strictly avoid any greetings or filler."
 file_read_error = "Unable to read from file. Please try again."
-
 number_error = 'Text number "-n" is not an integer.'
-
 number_range_error = "The number specified is not in the range of number of texts in file (counting starts from 0)."
 
 
-def set_api_key(api_key: str) -> str:
+post_req = {
+    'prompt': system_prompt,
+    'seed': SEED,
+    'stream': False,    # TODO: Stream in future
+
+}
+
+
+def set__GC_SERVER_URL(_GC_SERVER_URL: str) -> str:
     env_path = CONFIG_ENV_PATH
     os.makedirs(os.path.dirname(env_path), exist_ok=True)
 
@@ -42,12 +56,12 @@ def set_api_key(api_key: str) -> str:
 
     updated = False
     for index, line in enumerate(lines):
-        if line.startswith("GEMINI_API_KEY="):
-            lines[index] = f"GEMINI_API_KEY={api_key}"
+        if line.startswith("_GC_SERVER_URL="):
+            lines[index] = f"_GC_SERVER_URL={_GC_SERVER_URL}"
             updated = True
             break
     if not updated:
-        lines.append(f"GEMINI_API_KEY={api_key}")
+        lines.append(f"_GC_SERVER_URL={_GC_SERVER_URL}")
 
     with open(env_path, "w") as fp:
         fp.write("\n".join(lines).rstrip("\n") + "\n")
@@ -76,15 +90,15 @@ def parse_text_number(value: str) -> int:
 
 
 def text_grammar_check(text: str):
-    response = client.models.generate_content(
-        model="gemini-3.1-flash-lite",
-        contents=text,
-        config=types.GenerateContentConfig(
-            system_instruction="You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntactic and semantic errors. Strictly avoid any greetings or filler.",
-            seed=SEED,
-        ),
+    data = post_req.copy()
+    data['prompt'] += '\n\n' + text  # ty: ignore[unsupported-operator]
+    r = requests.post(
+        COMPLETION_URL,
+        json.dumps(data)
     )
-    return response.text
+    s = r.content.decode().strip()
+    s = json.loads(s)['content']
+    return s
 
 
 def flatten_list(l: list):
@@ -136,6 +150,7 @@ def read_from_file(path: str):
 
 def main(texts: list[str]):
     responses = []
+    print(texts)
     for text in texts:
         responses.append(text_grammar_check(text))
 
@@ -162,21 +177,21 @@ def cli():
         help="Check FILE as a whole",
     )
     parser.add_argument(
-        "--set-api-key",
+        "--set-server-url",
         metavar="KEY",
-        help="Store GEMINI_API_KEY in the user config",
+        help="Store _GC_SERVER_URL in the user config",
     )
 
     args = parser.parse_args()
 
-    if args.set_api_key:
+    if args.set_server_url:
         if args.text or args.file or args.number is not None or args.all:
-            parser.error("--set-api-key cannot be combined with other options")
-        env_path = set_api_key(args.set_api_key)
-        print(f"Saved GEMINI_API_KEY to {env_path}")
+            parser.error("--set-server-url cannot be combined with other options")
+        env_path = set__GC_SERVER_URL(args.set_server_url)
+        print(f"Saved _GC_SERVER_URL to {env_path}")
         sys.exit(0)
 
-    if API_KEY_PROVIDED:
+    if _GC_SERVER_URL_PROVIDED:
         if not args.text and not args.file:
             parser.print_help()
             sys.exit(0)
@@ -192,7 +207,7 @@ def cli():
             parser.error("-a/--all cannot be used with -t/--text")
     else:
         parser.error(
-            "No API key was provided. Please pass a valid API key using --set-api-key"
+            "No server URL key was provided. Please pass a valid URL using --set-server-url"
         )
 
     if args.text:
