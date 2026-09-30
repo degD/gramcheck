@@ -1,12 +1,15 @@
 import argparse
-import json
 import os
+import shutil
 import sys
 import urllib.parse as urlparse
 
 import dotenv
 import requests
-from colored import Fore
+from colorama import Fore, Style, just_fix_windows_console
+
+just_fix_windows_console()
+
 
 
 def get_config_env_path() -> str:
@@ -14,21 +17,26 @@ def get_config_env_path() -> str:
     return os.path.join(project_root, ".env")
 
 
+CONTEXT_LEN = 4000
 SEED = 4224442
 _GC_SERVER_URL_PROVIDED = True
 CONFIG_ENV_PATH = get_config_env_path()
 dotenv.load_dotenv(CONFIG_ENV_PATH)
 _GC_SERVER_URL = os.getenv('_GC_SERVER_URL')
-if _GC_SERVER_URL is None: _GC_SERVER_URL = ''
+if _GC_SERVER_URL is None:
+    _GC_SERVER_URL = ''
+if _GC_SERVER_URL and not _GC_SERVER_URL.endswith('/'):
+    _GC_SERVER_URL += '/'
+
 HEALTH_URL = urlparse.urljoin(_GC_SERVER_URL, 'health')
 COMPLETION_URL = urlparse.urljoin(_GC_SERVER_URL, 'completion')
 
 try:
-    if requests.head(str(HEALTH_URL)).status_code == 200:
+    if requests.head(str(HEALTH_URL), timeout=3).status_code == 200:
         _GC_SERVER_URL_PROVIDED = True
-    else: 
+    else:
         _GC_SERVER_URL_PROVIDED = False
-except:
+except Exception:
     _GC_SERVER_URL_PROVIDED = False
 
 system_prompt = "You are a tool made for language teaching. Check the text given by the user sentence by sentence for syntactic and semantic errors. Strictly avoid any greetings or filler."
@@ -40,8 +48,7 @@ number_range_error = "The number specified is not in the range of number of text
 post_req = {
     'prompt': system_prompt,
     'seed': SEED,
-    'stream': False,    # TODO: Stream in future
-
+    'stream': False,
 }
 
 
@@ -92,49 +99,30 @@ def parse_text_number(value: str) -> int:
 def text_grammar_check(text: str):
     data = post_req.copy()
     data['prompt'] += '\n\n' + text  # ty: ignore[unsupported-operator]
-    r = requests.post(
-        COMPLETION_URL,
-        json.dumps(data)
-    )
-    s = r.content.decode().strip()
-    s = json.loads(s)['content']
-    return s
+    r = requests.post(COMPLETION_URL, json=data)
+    r.raise_for_status()
+    return r.json()['content']
 
 
-def flatten_list(l: list):
-    l_flat = []
-    count = 0
-    for l_inner in l:
-        if isinstance(l_inner, list):
-            count += 1
-            l_flat.extend(l_inner)
-    if count == 0:
-        return l
-    else:
-        return flatten_list(l_flat)
-
-
-def parse_long_text(text: str):
+def parse_long_text(text: str) -> list[str]:
     word_count = len(text.split())
-    if word_count < 40_000:
-        return text
+    if word_count < CONTEXT_LEN:
+        return [text]
     else:
         text_first_half = " ".join(text.split()[: word_count // 2])
         text_second_half = " ".join(text.split()[word_count // 2 :])
-        return flatten_list(
-            [parse_long_text(text_first_half), parse_long_text(text_second_half)]
-        )
+        return parse_long_text(text_first_half) + parse_long_text(text_second_half)
 
 
-def parse_file_text(file_text: str):
+def parse_file_text(file_text: str) -> list[str]:
     texts = []
     for text in file_text.splitlines():
         if text:
-            texts.append(parse_long_text(text))
+            texts.extend(parse_long_text(text))
     return texts
 
 
-def parse_only_file_text(file_text: str):
+def parse_only_file_text(file_text: str) -> list[str]:
     texts = []
     for text in file_text.splitlines():
         if text:
@@ -142,22 +130,21 @@ def parse_only_file_text(file_text: str):
     return texts
 
 
-def read_from_file(path: str):
-    with open(path) as fp:
+def read_from_file(path: str) -> str:
+    with open(path, encoding='utf-8') as fp:
         file_text = "".join(fp.readlines())
         return file_text
 
 
 def main(texts: list[str]):
     responses = []
-    print(texts)
     for text in texts:
         responses.append(text_grammar_check(text))
 
     for i in range(len(texts)):
-        print("\n" + "#" * os.get_terminal_size().columns + "\n")
-        print(f"{Fore.red}{texts[i]}\n\n{Fore.green}{responses[i]}{Fore.white}")
-    print("\n" + "#" * os.get_terminal_size().columns + "\n")
+        print("\n" + "#" * shutil.get_terminal_size().columns + "\n")
+        print(f"{Fore.RED}{texts[i]}\n\n{Fore.GREEN}{responses[i]}{Style.RESET_ALL}")
+    print("\n" + "#" * shutil.get_terminal_size().columns + "\n")
 
 
 def cli():
@@ -191,31 +178,35 @@ def cli():
         print(f"Saved _GC_SERVER_URL to {env_path}")
         sys.exit(0)
 
-    if _GC_SERVER_URL_PROVIDED:
-        if not args.text and not args.file:
-            parser.print_help()
-            sys.exit(0)
-        if args.text and args.file:
-            parser.error("FILE and -t/--text cannot be used together")
-        if args.text and args.number is not None:
-            parser.error("-n/--number cannot be used with -t/--text")
-        if args.number is not None and not args.file:
-            parser.error("-n/--number requires FILE")
-        if args.all and not args.file:
-            parser.error("-a/--all requires FILE")
-        if args.all and args.text:
-            parser.error("-a/--all cannot be used with -t/--text")
-    else:
+    if not _GC_SERVER_URL_PROVIDED:
         parser.error(
-            "No server URL key was provided. Please pass a valid URL using --set-server-url"
+            "Server URL is not set or server is not reachable. "
+            "Please set a valid URL using --set-server-url"
         )
 
+    if args.text and args.file:
+        parser.error("FILE and -t/--text cannot be used together")
+    if args.text and args.number is not None:
+        parser.error("-n/--number cannot be used with -t/--text")
+    if args.number is not None and not args.file:
+        parser.error("-n/--number requires FILE")
+    if args.all and not args.file:
+        parser.error("-a/--all requires FILE")
+    if args.all and args.text:
+        parser.error("-a/--all cannot be used with -t/--text")
+    if args.number is not None and args.all:
+        parser.error("-n/--number and -a/--all cannot be used together")
+
+    if not args.text and not args.file:
+        parser.print_help()
+        sys.exit(0)
+
     if args.text:
-        texts = parse_file_text(args.text)
+        texts = parse_long_text(args.text)
     else:
         try:
             file_text = read_from_file(args.file)
-        except:
+        except Exception:
             sys.stderr.write(file_read_error + "\n")
             sys.exit(1)
 
@@ -225,14 +216,12 @@ def cli():
                 sys.stderr.write(number_range_error + "\n")
                 sys.exit(3)
             file_text = file_texts[args.number]
-            texts = parse_file_text(file_text)
+            texts = parse_long_text(file_text)
         elif args.all:
-            text_or_texts = parse_long_text(file_text)
-            texts = (
-                text_or_texts if isinstance(text_or_texts, list) else [text_or_texts]
-            )
+            texts = parse_long_text(file_text)
         else:
             texts = parse_file_text(file_text)
+
     main(texts)
 
 
